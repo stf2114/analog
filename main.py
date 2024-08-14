@@ -1,50 +1,48 @@
 import streamlit as st
-from simpleaichat import AIChat
+from openai import OpenAI
 from typing import Tuple
 import os
 
-# Define the options for each dropdown
-DRUG = ["Technology", "Science", "History", "Literature", "Arts"]
-TONES = ["Formal", "Casual", "Humorous", "Professional", "Empathetic"]
+# Define the options for the remaining dropdowns
 LENGTHS = ["Very Short", "Short", "Medium", "Long", "Very Long"]
-PERSPECTIVES = ["Objective", "Subjective", "Critical", "Supportive", "Neutral"]
-FORMATS = ["Paragraph", "Bullet Points", "List", "Storytelling", "Dialogue"]
 
-# Initialize AI chat as None, we'll create it after getting the API key
-ai = None
+# Initialize OpenAI client as None, we'll create it after getting the API key
+client = None
 
-def initialize_ai_chat(api_key: str):
-    """Initialize the AI chat with the provided API key."""
-    global ai
-    os.environ['OPENAI_API_KEY'] = api_key
-    ai = AIChat(console=False)
+def initialize_openai_client(api_key: str):
+    """Initialize the OpenAI client with the provided API key."""
+    global client
+    client = OpenAI(api_key=api_key)
 
-def get_user_input() -> Tuple[str, str, str, str, str]:
-    """Get user input from five dropdowns."""
-    topic = st.selectbox("Select a topic:", DRUG)
-    tone = st.selectbox("Select the tone:", TONES)
+def get_user_input() -> Tuple[str, str]:
+    """Get user input from two text fields and three dropdowns."""
+    drug = st.text_input("Enter the drug name:")
     length = st.selectbox("Select the content length:", LENGTHS)
-    perspective = st.selectbox("Select the perspective:", PERSPECTIVES)
-    format = st.selectbox("Select the content format:", FORMATS)
-    return topic, tone, length, perspective, format
+    return drug, length
 
-def generate_prompt(topic: str, tone: str, length: str, perspective: str, format: str) -> str:
-    """Generate a prompt for the AI based on user input."""
-    return f"""Generate content based on the following criteria:
-    1. Topic: {topic}
-    2. Tone: Use a {tone.lower()} tone.
-    3. Length: Provide a {length.lower()} piece of content. 
-       (Very Short: 1-2 sentences, Short: 3-4 sentences, Medium: 1-2 paragraphs, Long: 3-4 paragraphs, Very Long: 5+ paragraphs)
-    4. Perspective: Approach the content from a {perspective.lower()} perspective.
-    5. Format: Present the content in a {format.lower()} format.
+def generate_response(drug: str, length: str) -> str:
+    """Generate a response using GPT-4 with its built-in search capability."""
+    if client is None:
+        raise ValueError("OpenAI client has not been initialized. Please provide an API key.")
 
-    Create engaging and informative content that strictly adheres to all five criteria."""
+    prompt = f"""You are a market access expert for a large pharmaceutical company. Your objective is to propose a list of 5 to 7
+    competitors or analogs (not developed by Sanofi, the pharmaceutical company) to {drug}. Also, provide your justifications and reasoning behind your proposal decision. 
+    Your answer length should be {length}.
+    """
 
-def get_ai_response(prompt: str) -> str:
-    """Get a response from the AI using simpleaichat."""
-    if ai is None:
-        raise ValueError("AI chat has not been initialized. Please provide an API key.")
-    return ai(prompt)
+    messages = [
+        {"role": "system", "content": "You are a helpful AI assistant with the ability to browse the internet for up-to-date information."},
+        {"role": "user", "content": prompt}
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-4-1106-preview",  # This model has browsing capabilities
+        messages=messages,
+        max_tokens=1000,  # Adjust based on your needs
+        temperature=0.7
+    )
+
+    return response.choices[0].message.content
 
 def main():
     st.title("AI Analog Finder Tool")
@@ -58,18 +56,20 @@ def main():
     
     if api_key:
         st.session_state.openai_api_key = api_key
-        initialize_ai_chat(api_key)
+        initialize_openai_client(api_key)
 
-        topic, tone, length, perspective, format = get_user_input()
+        drug, length = get_user_input()
         
-        if st.button("Generate Content"):
-            try:
-                with st.spinner("Generating content..."):
-                    prompt = generate_prompt(topic, tone, length, perspective, format)
-                    content = get_ai_response(prompt)
-                    st.write("Generated Content:", content)
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
+        if st.button("Generate"):
+            if drug:  # Ensure that drug and length are not empty
+                try:
+                    with st.spinner("Searching and generating content..."):
+                        content = generate_response(drug, length)
+                        st.write("Generated Content:", content)
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
+            else:
+                st.warning("Please enter a drug name and select a length.")
     else:
         st.warning("Please enter your OpenAI API key")
 
