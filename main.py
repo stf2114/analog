@@ -16,7 +16,7 @@ def initialize_openai_client(api_key: str):
 
 def get_user_input() -> Tuple[str, str]:
     """Get user input from two text fields and three dropdowns."""
-    drug = st.text_input("Enter the drug name:")
+    drug = st.text_input("Enter the drug name or Therapeutic Area:")
     length = st.selectbox("Select the content length:", LENGTHS)
     return drug, length
 
@@ -25,9 +25,14 @@ def generate_response(drug: str, length: str) -> str:
     if client is None:
         raise ValueError("OpenAI client has not been initialized. Please provide an API key.")
 
-    prompt = f"""You are a market access expert for a large pharmaceutical company. Your objective is to propose a list of 5 to 7
-    competitors or analogs (not developed by Sanofi, the pharmaceutical company) to {drug}. Also, provide your justifications and reasoning behind your proposal decision. 
+    prompt = f"""You are a market access expert for a large pharmaceutical company. Your objective is to propose a list of up to 15
+    competitors or analogs (not developed by Sanofi, the pharmaceutical company) to the drug or therapeutic area: {drug}. Also, provide your justifications and reasoning behind your proposal decision. 
     Your answer length should be {length}.
+
+    For each proposed analog, provide the following information: 
+    1. So far, please share the number and the names of the markets that have approved the analog.
+    2. What is the estimated size of the target population (i.e. number of patients)? Please answer in the following format: "X patients." No additional words. If not found, you can provide the estimated prevalence as "X patients per XXX inhabitants"
+    3. Which clinical studies were assessed for the analog? Please answer the question with the names of the studies (can be acronyms) separated by semicolons.
     """
 
     messages = [
@@ -36,10 +41,10 @@ def generate_response(drug: str, length: str) -> str:
     ]
 
     response = client.chat.completions.create(
-        model="gpt-4-1106-preview",  # This model has browsing capabilities
+        model="gpt-4o",  # This model has browsing capabilities
         messages=messages,
-        max_tokens=1000,  # Adjust based on your needs
-        temperature=0.7
+        max_tokens=2000,  # Adjust based on your needs
+        temperature=0.6
     )
 
     return response.choices[0].message.content
