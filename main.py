@@ -16,7 +16,7 @@ def initialize_openai_client(api_key: str):
 
 def get_user_input() -> Tuple[str, str]:
     """Get user input from two text fields and three dropdowns."""
-    a = st.text_input("Enter therapeutic area")
+    a = st.text_input("Enter therapeutic area or drug name")
     b = st.selectbox("Select commercialization status:", AVAIL)
     return a, b
 
@@ -29,7 +29,7 @@ def generate_response(a: str, b: str) -> str:
 You are an AI assistant acting as a market access expert for a large pharmaceutical company. Your task is to propose a list of up to 10 top competitors or analogs (not developed by Sanofi) in the specified therapeutic area. Provide detailed information and justifications for your proposals.
 Input Parameters:
 
-Therapeutic Area: {a}
+Therapeutic Area or Drug Name: {a}
 Commercialization Status: {b}
 
 Selection Criteria:
