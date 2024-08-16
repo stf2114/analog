@@ -4,7 +4,7 @@ from typing import Tuple
 import os
 
 # Define the options for the remaining dropdowns
-LENGTHS = ["Very Short", "Short", "Medium", "Long", "Very Long"]
+AVAIL = ["Are approved therapies only","Include therapies still in clinical trial"]
 
 # Initialize OpenAI client as None, we'll create it after getting the API key
 client = None
@@ -16,23 +16,90 @@ def initialize_openai_client(api_key: str):
 
 def get_user_input() -> Tuple[str, str]:
     """Get user input from two text fields and three dropdowns."""
-    drug = st.text_input("Enter the drug name or Therapeutic Area:")
-    length = st.selectbox("Select the content length:", LENGTHS)
-    return drug, length
+    a = st.text_input("Enter therapeutic area")
+    b = st.selectbox("Select commercialization status:", AVAIL)
+    return a, b
 
-def generate_response(drug: str, length: str) -> str:
+def generate_response(a: str, b: str) -> str:
     """Generate a response using GPT-4 with its built-in search capability."""
     if client is None:
         raise ValueError("OpenAI client has not been initialized. Please provide an API key.")
 
-    prompt = f"""You are a market access expert for a large pharmaceutical company. Your objective is to propose a list of up to 15
-    competitors or analogs (not developed by Sanofi, the pharmaceutical company) to the drug or therapeutic area: {drug}. Also, provide your justifications and reasoning behind your proposal decision. 
-    Your answer length should be {length}.
+    prompt = f"""
+You are an AI assistant acting as a market access expert for a large pharmaceutical company. Your task is to propose a list of up to 10 top competitors or analogs (not developed by Sanofi) in the specified therapeutic area. Provide detailed information and justifications for your proposals.
+Input Parameters:
 
-    For each proposed analog, provide the following information: 
-    1. So far, please share the number and the names of the markets that have approved the analog.
-    2. What is the estimated size of the target population (i.e. number of patients)? Please answer in the following format: "X patients." No additional words. If not found, you can provide the estimated prevalence as "X patients per XXX inhabitants"
-    3. Which clinical studies were assessed for the analog? Please answer the question with the names of the studies (can be acronyms) separated by semicolons.
+Therapeutic Area: {a}
+Commercialization Status: {b}
+
+Selection Criteria:
+
+The proposed analogs must be drugs that {b}.
+Relevance to the specified therapeutic area: {a}
+Market impact and potential
+Innovative features or mechanisms of action
+Competitive positioning in the market
+Disease prevalence
+
+For each proposed analog, provide the following information:
+
+Drug Name: [Name of the analog]
+Manufacturer: [Pharmaceutical company producing the drug]
+Treatment Disease and Indication(s): [Specific conditions the drug treats]
+Market Approval:
+
+Number of major markets that have approved the analog: [X markets]
+Names of these markets: [List major markets]
+FDA/EMA Status: [Approval status and date, if available]
+
+
+Target Population:
+
+Estimated size: [X patients]
+If exact number unavailable: [Estimated prevalence as "X patients per XXX inhabitants"]
+
+
+Clinical Studies:
+
+List of key clinical studies: [Study names/acronyms, separated by semicolons]
+
+
+Disease Burden and Mortality:
+
+Quantitative data on disease burden: [Include statistics if available]
+Mortality rates or impact: [Include data if available]
+
+
+Reimbursement Status (as of [current year]):
+
+United States: [Status and year approved]
+France: [Status and year approved]
+Italy: [Status and year approved]
+United Kingdom: [Status and year approved]
+Spain: [Status and year approved]
+Germany: [Status and year approved]
+
+
+Key Differentiators:
+
+Briefly explain what makes this analog stand out in the market
+
+
+Justification:
+
+Provide a concise explanation of why this analog was selected, considering the criteria mentioned above
+
+
+
+Additional Instructions:
+
+Ensure all information is up-to-date and accurate.
+If specific data points are not available, clearly state so and provide the best available alternative information.
+Present the information in a clear, structured format for easy readability.
+Limit your response to the top 10 most relevant analogs, even if more are available.
+If fewer than 10 relevant analogs exist, provide information on all that meet the criteria.
+
+Please proceed with your analysis and present the findings based on these guidelines.
     """
 
     messages = [
@@ -43,14 +110,14 @@ def generate_response(drug: str, length: str) -> str:
     response = client.chat.completions.create(
         model="gpt-4o",  # This model has browsing capabilities
         messages=messages,
-        max_tokens=2000,  # Adjust based on your needs
+        max_tokens=4000,  # Adjust based on your needs
         temperature=0.6
     )
 
     return response.choices[0].message.content
 
 def main():
-    st.title("AI Analog Finder Tool")
+    st.title("AI Analog Initial Assessment")
 
     # Check if API key is already in session state
     if 'openai_api_key' not in st.session_state:
