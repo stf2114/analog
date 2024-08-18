@@ -25,8 +25,8 @@ def generate_response(api_name: str, country: str) -> str:
         raise ValueError("OpenAI client has not been initialized. Please provide an API key.")
 
     prompt = f"""
-Provide a comprehensive analysis of all available patent information for the drug {api_name} in {country}. Include as much of the following information as possible.
-Present the information in a clear, structured format using Markdown. Use appropriate Markdown syntax for headings, lists, and emphasis. Provide as much detail as possible based on the information available to you.
+Provide an analysis of all available patent information for the drug {api_name} in {country}. Provide as much information as possible available to you regarding all patents.
+Present the information in a clear, structured format using Markdown. Use appropriate Markdown syntax for headings, lists, and emphasis.
 """
 
     messages = [
