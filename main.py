@@ -4,7 +4,8 @@ from typing import Tuple
 import os
 
 # Define the options for the remaining dropdowns
-AVAIL = ["Are approved therapies only","Include therapies still in clinical trial"]
+AVAIL = ["Are approved therapies only", "Include therapies still in clinical trial"]
+VIEW_OPTIONS = ["5 analogs with complete information", "Up to 20 analogs with limited information"]
 
 # Initialize OpenAI client as None, we'll create it after getting the API key
 client = None
@@ -14,28 +15,36 @@ def initialize_openai_client(api_key: str):
     global client
     client = OpenAI(api_key=api_key)
 
-def get_user_input() -> Tuple[str, str]:
+def get_user_input() -> Tuple[str, str, str, str]:
     """Get user input from two text fields and three dropdowns."""
     a = st.text_input("Enter therapeutic area or drug name")
     b = st.selectbox("Select commercialization status:", AVAIL)
-    return a, b
+    c = st.text_input("Enter cutoff launch year")
+    d = st.selectbox("Select view option:", VIEW_OPTIONS)
+    return a, b, c, d
 
-def generate_response(a: str, b: str) -> str:
+def generate_response(a: str, b: str, c: str, d: str) -> str:
     """Generate a response using GPT-4 with its built-in search capability."""
     if client is None:
         raise ValueError("OpenAI client has not been initialized. Please provide an API key.")
 
+    num_analogs = "5" if d == VIEW_OPTIONS[0] else "20"
+    detail_level = "detailed" if d == VIEW_OPTIONS[0] else "limited"
+
     prompt = f"""
-You are an AI assistant acting as a market access expert for a large pharmaceutical company. Your task is to propose a list of up to 10 top competitors or analogs (not developed by Sanofi) in the specified therapeutic area. Provide detailed information and justifications for your proposals.
+You are an AI assistant acting as a market access expert for a large pharmaceutical company. Your task is to propose a list of up to {num_analogs} top competitors or analogs (no repeat of analogs). Provide {detail_level} information and justifications for your proposals.
 Input Parameters:
 
 Therapeutic Area or Drug Name: {a}
 Commercialization Status: {b}
+Cutoff for launch year (i.e. only show analogs starting the year input by user): {c}
+View Option: {d}
 
 Selection Criteria:
 
 The proposed analogs must be drugs that {b}.
 Relevance to the specified therapeutic area: {a}
+Cutoff for launch year: {c}
 Market impact and potential
 Innovative features or mechanisms of action
 Competitive positioning in the market
@@ -43,9 +52,12 @@ Disease prevalence
 
 For each proposed analog, provide the following information:
 
-Drug Name: [Name of the analog]
+Drug Name: [Brand Name (API Name)]
 Manufacturer: [Pharmaceutical company producing the drug]
 Treatment Disease and Indication(s): [Specific conditions the drug treats]
+Orphan Drug Designation: [Yes / No, or provide countries that have given orphan drug designation and other major markets that didn't]
+
+{"" if d == VIEW_OPTIONS[1] else '''
 Market Approval:
 
 Number of major markets that have approved the analog: [X markets]
@@ -70,15 +82,24 @@ Quantitative data on disease burden: [Include statistics if available]
 Mortality rates or impact: [Include data if available]
 
 
-Reimbursement Status (as of [current year]):
+List Price & HTA Assessment Status (as of [current year]) 
+For each market, produce information regarding HTA assessment status, and list price if available in Euros. Include the following details for each country:
 
-United States: [Status and year approved]
-France: [Status and year approved]
-Italy: [Status and year approved]
-United Kingdom: [Status and year approved]
-Spain: [Status and year approved]
-Germany: [Status and year approved]
+United States: [List Price, FDA approval status and date]
+France: [List Price, HAS assessment - ASMR & SMR ratings]
+Italy: [List Price, AIFA assessment - Innovation status and reimbursement decision]
+United Kingdom: [List Price, NICE decision (recommended, optimized, not recommended)]
+Spain: [List Price, Ministry of Health pricing & reimbursement decision]
+Germany: [List Price, G-BA assessment - Added benefit category]
+Saudi Arabia: [List Price, SFDA approval status]
+Japan: [List Price, PMDA approval status, Pricing Premium status if applicable]
+Brazil: [List Price, ANVISA approval status, CONITEC recommendation if available]
 
+For each country, also include:
+- Reimbursement status (if approved)
+- Any specific restrictions or conditions for use
+- Notable price negotiations or agreements, if public
+'''}
 
 Key Differentiators:
 
@@ -96,8 +117,8 @@ Additional Instructions:
 Ensure all information is up-to-date and accurate.
 If specific data points are not available, clearly state so and provide the best available alternative information.
 Present the information in a clear, structured format for easy readability.
-Limit your response to the top 10 most relevant analogs, even if more are available.
-If fewer than 10 relevant analogs exist, provide information on all that meet the criteria.
+Limit your response to the top {num_analogs} most relevant analogs, even if more are available.
+If fewer than {num_analogs} relevant analogs exist, provide information on all that meet the criteria.
 
 Please proceed with your analysis and present the findings based on these guidelines.
     """
@@ -111,7 +132,7 @@ Please proceed with your analysis and present the findings based on these guidel
         model="gpt-4o",  # This model has browsing capabilities
         messages=messages,
         max_tokens=4000,  # Adjust based on your needs
-        temperature=0.6
+        temperature=0.7
     )
 
     return response.choices[0].message.content
@@ -130,13 +151,13 @@ def main():
         st.session_state.openai_api_key = api_key
         initialize_openai_client(api_key)
 
-        drug, length = get_user_input()
+        drug, length, yr, view_option = get_user_input()
         
         if st.button("Generate"):
             if drug:  # Ensure that drug and length are not empty
                 try:
                     with st.spinner("Searching and generating content..."):
-                        content = generate_response(drug, length)
+                        content = generate_response(drug, length, yr, view_option)
                         st.write("Generated Content:", content)
                 except Exception as e:
                     st.error(f"An error occurred: {str(e)}")
