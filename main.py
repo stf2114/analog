@@ -5,7 +5,7 @@ import os
 
 # Define the options for the remaining dropdowns
 AVAIL = ["Are approved therapies only", "Include therapies still in clinical trial"]
-VIEW_OPTIONS = ["5 analogs with complete information", "Up to 20 analogs with limited information"]
+VIEW_OPTIONS = ["7 analogs with complete information", "Up to 20 analogs with limited information"]
 
 # Initialize OpenAI client as None, we'll create it after getting the API key
 client = None
@@ -19,7 +19,7 @@ def get_user_input() -> Tuple[str, str, str, str]:
     """Get user input from two text fields and three dropdowns."""
     a = st.text_input("Enter therapeutic area or drug name")
     b = st.selectbox("Select commercialization status:", AVAIL)
-    c = st.text_input("Enter cutoff launch year")
+    c = st.text_input("Enter cutoff launch year (show analogs from this year to present)")
     d = st.selectbox("Select view option:", VIEW_OPTIONS)
     return a, b, c, d
 
@@ -28,7 +28,7 @@ def generate_response(a: str, b: str, c: str, d: str) -> str:
     if client is None:
         raise ValueError("OpenAI client has not been initialized. Please provide an API key.")
 
-    num_analogs = "5" if d == VIEW_OPTIONS[0] else "20"
+    num_analogs = "7" if d == VIEW_OPTIONS[0] else "20"
     detail_level = "detailed" if d == VIEW_OPTIONS[0] else "limited"
 
     prompt = f"""
@@ -83,34 +83,23 @@ Mortality rates or impact: [Include data if available]
 
 
 List Price & HTA Assessment Status (as of [current year]) 
-For each market, produce information regarding HTA assessment status, and list price if available in Euros. Include the following details for each country:
+For each market, produce information regarding HTA assessment status, and list price (both per patient per year and per vial price) if available. Include the following details for each country:
 
-United States: [List Price, FDA approval status and date]
-France: [List Price, HAS assessment - ASMR & SMR ratings]
-Italy: [List Price, AIFA assessment - Innovation status and reimbursement decision]
-United Kingdom: [List Price, NICE decision (recommended, optimized, not recommended)]
-Spain: [List Price, Ministry of Health pricing & reimbursement decision]
-Germany: [List Price, G-BA assessment - Added benefit category]
-Saudi Arabia: [List Price, SFDA approval status]
-Japan: [List Price, PMDA approval status, Pricing Premium status if applicable]
-Brazil: [List Price, ANVISA approval status, CONITEC recommendation if available]
+United States: [List Price (per patient per year and per vial), FDA approval status and date]
+France: [List Price (per patient per year and per vial), HAS assessment - ASMR & SMR ratings]
+Italy: [List Price (per patient per year and per vial), AIFA assessment - Innovation status and reimbursement decision]
+United Kingdom: [List Price (per patient per year and per vial), NICE decision (recommended, optimized, not recommended)]
+Spain: [List Price (per patient per year and per vial), Ministry of Health pricing & reimbursement decision]
+Germany: [List Price (per patient per year and per vial), G-BA assessment - Added benefit category]
+Japan: [List Price (per patient per year and per vial), PMDA approval status, Pricing Premium status if applicable]
 
 For each country, also include:
 - Reimbursement status (if approved)
 - Any specific restrictions or conditions for use
 - Notable price negotiations or agreements, if public
+- Citation of sources used for list price information (provide specific URLs or references for each price point)
+- Citation of sources used for HTA assessment information (provide specific URLs or references for each assessment)
 '''}
-
-Key Differentiators:
-
-Briefly explain what makes this analog stand out in the market
-
-
-Justification:
-
-Provide a concise explanation of why this analog was selected, considering the criteria mentioned above
-
-
 
 Additional Instructions:
 
@@ -119,6 +108,9 @@ If specific data points are not available, clearly state so and provide the best
 Present the information in a clear, structured format for easy readability.
 Limit your response to the top {num_analogs} most relevant analogs, even if more are available.
 If fewer than {num_analogs} relevant analogs exist, provide information on all that meet the criteria.
+No summary or introduction is needed. 
+For each list price and HTA assessment provided, include a citation or reference to the source of this information. Use reputable sources such as official government websites, drug pricing databases, or published reports.
+Format citations as [Source: URL] immediately after the relevant information.
 
 Please proceed with your analysis and present the findings based on these guidelines.
     """
@@ -132,7 +124,7 @@ Please proceed with your analysis and present the findings based on these guidel
         model="gpt-4o",  # This model has browsing capabilities
         messages=messages,
         max_tokens=4000,  # Adjust based on your needs
-        temperature=0.7
+        temperature=0.6
     )
 
     return response.choices[0].message.content
